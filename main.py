@@ -1,4 +1,5 @@
 import os
+import logging
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
@@ -11,10 +12,27 @@ TOKEN = os.environ.get("BOT_TOKEN")
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
+logging.basicConfig(level=logging.INFO)
 
-@dp.message_handler(commands=['start', 'help'])
-async def send_welcome(msg: types.Message):
-    await msg.reply(f'Я бот. Приятно познакомиться, {msg.from_user.first_name}')
+
+@dp.message_handler(commands=['start'])
+async def start_cmd(msg: types.Message):
+    """Обработка события команды /start"""
+    keyboard = types.InlineKeyboardMarkup(row_width=2)
+    buttons = [
+        types.InlineKeyboardButton(text='Зарегестрироваться', callback_data='sign_up'),
+        types.InlineKeyboardButton(text='Внести в таблицу', callback_data='add_to_table'),
+    ]
+    keyboard.add(*buttons)
+    text = f"Я бот подчета финансовых расходов. Приятно познакомиться, {msg.from_user.first_name}.\n" \
+           f"Вы можете:"
+    await msg.answer(text=text, reply_markup=keyboard)
+
+
+@dp.message_handler(commands=['help'])
+async def help_cmd(msg: types.Message):
+    """Обработка события команды /help"""
+    await msg.answer(f'Я бот подчета финансовых расходов.')
 
 
 @dp.message_handler(content_types=['text'])
