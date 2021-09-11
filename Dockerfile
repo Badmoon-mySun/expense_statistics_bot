@@ -9,4 +9,4 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-RUN python3 main.py
+RUN python3 src/main.py
