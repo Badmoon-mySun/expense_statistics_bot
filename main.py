@@ -1,6 +1,6 @@
 import os
 import logging
-import aiohttp
+
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
@@ -9,6 +9,7 @@ from dotenv import load_dotenv, find_dotenv
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from states import SignUp
+from common import _is_url_ok
 
 load_dotenv(find_dotenv())
 
@@ -19,13 +20,7 @@ dp = Dispatcher(bot, storage=storage)
 
 logging.basicConfig(level=logging.INFO)
 
-# async def _is_url_ok(url):
-#     try:
-#        async with aiohttp.ClientSession() as session:
-#            async with session.get(url) as resp:
-#                return resp.status == 200
-#     except:
-#         return False
+
 
 @dp.message_handler(commands=['start'])
 async def start_cmd(msg: types.Message):
@@ -53,7 +48,6 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state is None:
         return
-
     logging.info('Cancelling state %r', current_state)
     # Cancel state and inform user about it
     await state.finish()
@@ -68,25 +62,26 @@ async def start_sing_up(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(state=SignUp.wait_for_name)
-async def save_user_name(message: types.Message, state: FSMContext):
+async def input_user_name(message: types.Message, state: FSMContext):
     """Состояние 1: Ввод пользовательского имени"""
     if isinstance(message.text, str):
         await state.update_data(user_name=message.text)
+    else:
+        await bot.send_message(message.from_user.id, text='Введите корректное имя')
     await SignUp.next()
     await message.answer('Теперь введите сслыку на Ваш Google Sheets:')
 
 
 @dp.message_handler(state=SignUp.wait_for_url)
-async def save_url(message: types.Message, state: FSMContext):
+async def input_sheets_url(message: types.Message, state: FSMContext):
     """Состояние 2: Ввод URL-ссылки"""
-    if 'https://docs.google.com/spreadsheets/' in message.text:
-        # print(await _is_url_ok(message.text))
+    if message.text.startswith('https://docs.google.com/spreadsheets/d/') and (await _is_url_ok(message.text)):
         store = await state.get_data()
         await message.answer(f"Ваше имя - {store['user_name']}\n"
                              f"Ваш URL - {message.text}")
         await state.finish()
     else:
-        await bot.send_message(message.from_user.id, text='Выход')
+        await bot.send_message(message.from_user.id, text='Введите корректный URL')
 
 
 if __name__ == '__main__':
