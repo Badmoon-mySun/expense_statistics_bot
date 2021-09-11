@@ -19,6 +19,7 @@ async def send_welcome(msg: types.Message):
 
 @dp.message_handler(content_types=['text'])
 async def get_text_messages(msg: types.Message):
+    print(msg.from_user.id)  # 732843764
     if msg.text.lower() == 'привет':
         await msg.answer('Привет!')
     else:
