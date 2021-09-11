@@ -9,4 +9,6 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-RUN python3 src/main.py
+EXPOSE 5000
+
+CMD bash /app/run.sh
