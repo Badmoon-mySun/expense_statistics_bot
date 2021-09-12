@@ -1,25 +1,34 @@
 import os
+
 import logging
 
-
-from aiogram import Bot, types
-from aiogram.dispatcher import Dispatcher
-from aiogram.utils import executor
-from dotenv import load_dotenv, find_dotenv
 from aiogram.dispatcher import FSMContext
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from states import SignUp
+
 from common import _is_url_ok
+from aiogram import types
+
+from states import SignUp
+from aiogram import Bot
+from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram.dispatcher import Dispatcher
+from dotenv import load_dotenv, find_dotenv
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 load_dotenv(find_dotenv())
 
 TOKEN = os.environ.get("BOT_TOKEN")
 bot = Bot(token=TOKEN)
+
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
+dp.middleware.setup(LoggingMiddleware())
 
 logging.basicConfig(level=logging.INFO)
 
+
+PROJECT_NAME=os.environ.get("PROJECT_NAME")
+WEBAPP_HOST = "0.0.0.0"
+WEBAPP_PORT = int(os.environ.get("PORT"))
 
 
 @dp.message_handler(commands=['start'])
@@ -82,7 +91,3 @@ async def input_sheets_url(message: types.Message, state: FSMContext):
         await state.finish()
     else:
         await bot.send_message(message.from_user.id, text='Введите корректный URL')
-
-
-if __name__ == '__main__':
-    executor.start_polling(dp)
