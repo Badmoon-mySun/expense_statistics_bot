@@ -5,6 +5,7 @@ from aiogram.dispatcher import FSMContext
 
 from models.states import SignUp
 from service.common import _is_url_ok
+from models import add_to_db, check_db
 from . import dp, bot
 
 
@@ -29,7 +30,7 @@ async def help_cmd(msg: types.Message):
 
 
 @dp.message_handler(state='*', commands='cancel')
-async def cancel_handler(message: types.Message, state: FSMContext):
+async def cancel_handler(msg: types.Message, state: FSMContext):
     """Разрешить пользователю отменять любое действие"""
     current_state = await state.get_state()
     if current_state is None:
@@ -40,31 +41,37 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query_handler(text='sign_up')
-async def start_sing_up(message: types.Message, state: FSMContext):
+async def start_sing_up(msg: types.Message, state: FSMContext):
     """Запуск процесса регистрации"""
-    text = "Введите Ваше имя:"
-    await bot.send_message(message.from_user.id, text=text)
-    await SignUp.wait_for_name.set()
+    if await check_db(f"SELECT telegram_id FROM customers WHERE telegram_id = {msg.from_user.id}") == False:
+        text = "Введите Ваше имя:"
+        await bot.send_message(msg.from_user.id, text=text)
+        await SignUp.wait_for_name.set()
+    else:
+        await bot.send_message(msg.from_user.id, text='Пользователь уже существует!')
+        await state.finish()
 
 
 @dp.message_handler(state=SignUp.wait_for_name)
-async def input_user_name(message: types.Message, state: FSMContext):
+async def input_user_name(msg: types.Message, state: FSMContext):
     """Состояние 1: Ввод пользовательского имени"""
-    if isinstance(message.text, str):
-        await state.update_data(user_name=message.text)
+    if isinstance(msg.text, str):
+        await state.update_data(user_name=msg.text)
     else:
-        await bot.send_message(message.from_user.id, text='Введите корректное имя')
+        await bot.send_message(msg.from_user.id, text='Введите корректное имя')
     await SignUp.next()
-    await message.answer('Теперь введите сслыку на Ваш Google Sheets:')
+    await msg.answer('Теперь введите сслыку на Ваш Google Sheets:')
 
 
 @dp.message_handler(state=SignUp.wait_for_url)
-async def input_sheets_url(message: types.Message, state: FSMContext):
+async def input_sheets_url(msg: types.Message, state: FSMContext):
     """Состояние 2: Ввод URL-ссылки"""
-    if message.text.startswith('https://docs.google.com/spreadsheets/d/') and (await _is_url_ok(message.text)):
-        store = await state.get_data()
-        await message.answer(f"Ваше имя - {store['user_name']}\n"
-                             f"Ваш URL - {message.text}")
+    if msg.text.startswith('https://docs.google.com/spreadsheets/d/') and (await _is_url_ok(msg.text)):
+        user_data = (msg.from_user.id, msg.text)
+        await add_to_db('''INSERT INTO customers (telegram_id, sheet_url) VALUES (?, ?)''', user_data)
+
+        await msg.answer("Регестрация завершена!")
         await state.finish()
+
     else:
-        await bot.send_message(message.from_user.id, text='Введите корректный URL')
+        await bot.send_message(msg.from_user.id, text='Введите корректный URL')

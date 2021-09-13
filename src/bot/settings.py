@@ -2,8 +2,6 @@ import logging
 import os
 
 from dotenv import load_dotenv, find_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 
 load_dotenv(find_dotenv())
 
@@ -19,9 +17,8 @@ WEBHOOK_HOST = f"https://{PROJECT_NAME}.herokuapp.com"
 WEBHOOK_PATH = "/webhook/" + TOKEN
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
-# Подключение к БД SQLite
-engine = create_engine('sqlite:///sqlite3.db')
-conn = engine.connect()
+DATABASE_NAME = 'sqlite.db'
 
-# Декларированный класс
-Base = declarative_base()
+
+
+
