@@ -3,7 +3,7 @@ import logging
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 
-from models.states import SignUp
+from models.states import SignUp, Income, Expenses
 from service.common import _is_url_ok
 from models import add_to_db, check_db
 from . import dp, bot
@@ -75,3 +75,79 @@ async def input_sheets_url(msg: types.Message, state: FSMContext):
 
     else:
         await bot.send_message(msg.from_user.id, text='Введите корректный URL')
+
+
+@dp.callback_query_handler(text='add_to_table')
+async def choose_operation(msg: types.Message, state: FSMContext):
+    """Запуск процесса внесения операции"""
+    keyboard = types.InlineKeyboardMarkup()
+    buttons = [
+        types.InlineKeyboardButton("Доход", callback_data='Income'),
+        types.InlineKeyboardButton("Расход", callback_data='Expenses'),
+    ]
+    keyboard.add(*buttons)
+    await bot.send_message(msg.from_user.id, "Выберите операцию:", reply_markup=keyboard)
+
+@dp.callback_query_handler(text='Income')
+async def add_income_to_table(msg: types.Message, state: FSMContext):
+    """Состояние 1: Ввод названия Дохода"""
+    await bot.send_message(msg.from_user.id, "Введите название Дохода:")
+    await Income.wait_for_income_name.set()
+
+@dp.message_handler(state=Income.wait_for_income_name)
+async def set_income_name(msg: types.Message, state: FSMContext):
+    """Состояние 2: Ввод суммы Дохода"""
+    if isinstance(msg.text, str):
+        await state.update_data(income_name=msg.text)
+        await msg.answer('Введите сумму Дохода:')
+        await Income.next()
+    else:
+        await msg.answer("Введите корректную информацию")
+
+@dp.message_handler(state=Income.wait_for_income_value)
+async def set_income_value(msg: types.Message, state: FSMContext):
+    """Добваление Дохода в Таблицу"""
+    try:
+        int(msg.text)
+        store = await state.get_data()
+        await msg.answer(f"Название: {store['income_name']}\nСумма: {msg.text}")
+
+        # Операции с таблицей
+
+        await msg.answer('Доход добавлен!')
+        await state.finish()
+    except:
+        await msg.answer("Ошибка, повторите")
+
+
+@dp.callback_query_handler(text='Expenses')
+async def add_expense_to_table(msg: types.Message, state: FSMContext):
+    """Состояние 1: Ввод названия Расхода"""
+    await bot.send_message(msg.from_user.id, "Введите название Расхода:")
+    await Expenses.wait_for_expenses_name.set()
+
+
+@dp.message_handler(state=Expenses.wait_for_expenses_name)
+async def set_expense_name(msg: types.Message, state: FSMContext):
+    """Состояние 2: Ввод суммы Расхода"""
+    if isinstance(msg.text, str):
+        await state.update_data(expense_name=msg.text)
+        await msg.answer('Введите сумму Расхода:')
+        await Expenses.next()
+    else:
+        await msg.answer("Введите корректную информацию")
+
+@dp.message_handler(state=Expenses.wait_for_expenses_value)
+async def set_expense_value(msg: types.Message, state: FSMContext):
+    """Добваление Расхода в Таблицу"""
+    try:
+        int(msg.text)
+        store = await state.get_data()
+        await msg.answer(f"Название: {store['expense_name']}\nСумма: {msg.text}")
+
+        # Операции с таблицей
+
+        await msg.answer('Расход добавлен!')
+        await state.finish()
+    except:
+        await msg.answer("Ошибка, повторите")
